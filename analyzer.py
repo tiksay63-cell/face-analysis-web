@@ -9,18 +9,27 @@ from prompts import ANALYSIS_PROMPT
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
-def analyze_image(image_path):
+def analyze_image(image_path, full=False):
 
     with open(image_path, "rb") as image_file:
-
         image_bytes = image_file.read()
 
     encoded_image = base64.b64encode(
         image_bytes
     ).decode("utf-8")
 
-    response = client.responses.create(
+    prompt = ANALYSIS_PROMPT
 
+    if full:
+        prompt += """
+
+Это полный расширенный анализ.
+Сделай более подробный разбор видимых характеристик фотографии,
+чем в обычном анализе. Структурируй ответ по отдельным разделам
+и добавь больше конкретных наблюдений по изображению.
+"""
+
+    response = client.responses.create(
         model="gpt-5.6-luna",
 
         input=[
@@ -28,10 +37,9 @@ def analyze_image(image_path):
                 "role": "user",
 
                 "content": [
-
                     {
                         "type": "input_text",
-                        "text": ANALYSIS_PROMPT
+                        "text": prompt
                     },
 
                     {
@@ -39,7 +47,6 @@ def analyze_image(image_path):
                         "image_url":
                             f"data:image/jpeg;base64,{encoded_image}"
                     }
-
                 ]
             }
         ]

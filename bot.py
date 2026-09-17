@@ -1,4 +1,3 @@
-```python
 import os
 import tempfile
 
@@ -33,18 +32,10 @@ from database import (
 from analyzer import analyze_image
 
 
-# ============================================================
-# НАСТРОЙКИ
-# ============================================================
-
 FULL_ANALYSIS_PRICE = 100
 
 PHOTO_DIR = "data/photos"
 
-
-# ============================================================
-# СОХРАНЕНИЕ ПОСЛЕДНЕЙ ФОТОГРАФИИ
-# ============================================================
 
 def save_user_photo(user_id, source_path):
 
@@ -58,15 +49,9 @@ def save_user_photo(user_id, source_path):
         f"{user_id}.jpg"
     )
 
-    with open(
-        source_path,
-        "rb"
-    ) as source:
+    with open(source_path, "rb") as source:
 
-        with open(
-            destination,
-            "wb"
-        ) as destination_file:
+        with open(destination, "wb") as destination_file:
 
             destination_file.write(
                 source.read()
@@ -88,10 +73,6 @@ def get_user_photo(user_id):
 
     return None
 
-
-# ============================================================
-# START
-# ============================================================
 
 async def start(
     update: Update,
@@ -152,10 +133,6 @@ async def start(
     )
 
 
-# ============================================================
-# ПРОСЬБА О ФОТО
-# ============================================================
-
 async def ask_for_photo(query):
 
     await query.message.reply_text(
@@ -170,10 +147,6 @@ async def ask_for_photo(query):
         "• без сильных фильтров"
     )
 
-
-# ============================================================
-# ЛИМИТ
-# ============================================================
 
 async def show_limit(query):
 
@@ -199,10 +172,6 @@ async def show_limit(query):
         f"{remaining}"
     )
 
-
-# ============================================================
-# ИНФОРМАЦИЯ О РАСШИРЕННОМ АНАЛИЗЕ
-# ============================================================
 
 async def show_full_analysis_info(query):
 
@@ -248,10 +217,6 @@ async def show_full_analysis_info(query):
     )
 
 
-# ============================================================
-# ОБРАБОТКА КНОПОК
-# ============================================================
-
 async def button_handler(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
@@ -287,10 +252,6 @@ async def button_handler(
         )
 
 
-# ============================================================
-# СОЗДАНИЕ СЧЁТА TELEGRAM STARS
-# ============================================================
-
 async def send_full_invoice(
     query,
     context
@@ -322,7 +283,7 @@ async def send_full_invoice(
 
         description=(
             "Подробный визуальный анализ "
-            "фотографии лица и рекомендации "
+            "фотографии и рекомендации "
             "по визуальной подаче."
         ),
 
@@ -341,10 +302,6 @@ async def send_full_invoice(
     )
 
 
-# ============================================================
-# PRE-CHECKOUT
-# ============================================================
-
 async def precheckout_callback(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
@@ -356,10 +313,6 @@ async def precheckout_callback(
         ok=True
     )
 
-
-# ============================================================
-# УСПЕШНАЯ ОПЛАТА
-# ============================================================
 
 async def successful_payment(
     update: Update,
@@ -430,14 +383,222 @@ async def successful_payment(
         )
 
 
-# ============================================================
-# ОТПРАВКА ДЛИННОГО СООБЩЕНИЯ
-# ============================================================
-
 async def send_long_message(
     message,
     text
 ):
 
-    max_leng_
-```
+    max_length = 4000
+
+    for start in range(
+        0,
+        len(text),
+        max_length
+    ):
+
+        part = text[
+            start:start + max_length
+        ]
+
+        await message.reply_text(
+            part
+        )
+
+
+async def handle_photo(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    user_id = update.effective_user.id
+
+    used = get_free_analyses(
+        user_id
+    )
+
+    if used >= FREE_DAILY_ANALYSES:
+
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    "💎 Расширенный анализ — 100 Stars",
+                    callback_data="full"
+                )
+            ]
+
+        ]
+
+        await update.message.reply_text(
+
+            "🔒 Бесплатный лимит на сегодня исчерпан.\n\n"
+
+            f"Использовано: "
+            f"{FREE_DAILY_ANALYSES}/"
+            f"{FREE_DAILY_ANALYSES}\n\n"
+
+            "Для получения расширенного разбора "
+            "можно приобрести полный анализ.",
+
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
+        )
+
+        return
+
+    await update.message.reply_text(
+
+        "🔎 Анализирую фотографию...\n\n"
+        "⏳ Пожалуйста, подождите."
+    )
+
+    photo = update.message.photo[-1]
+
+    telegram_file = await photo.get_file()
+
+    with tempfile.NamedTemporaryFile(
+        suffix=".jpg",
+        delete=False
+    ) as temp:
+
+        temporary_path = temp.name
+
+    try:
+
+        await telegram_file.download_to_drive(
+            temporary_path
+        )
+
+        save_user_photo(
+            user_id,
+            temporary_path
+        )
+
+        result = analyze_image(
+            temporary_path,
+            full=False
+        )
+
+        add_free_analysis(
+            user_id
+        )
+
+        await send_long_message(
+            update.message,
+            result
+        )
+
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    "💎 Расширенный разбор — 100 Stars",
+                    callback_data="full"
+                )
+            ]
+
+        ]
+
+        await update.message.reply_text(
+
+            "💡 Хотите получить расширенный "
+            "разбор этой фотографии?",
+
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
+        )
+
+    except Exception as error:
+
+        print(
+            "PHOTO ANALYSIS ERROR:"
+        )
+
+        print(
+            error
+        )
+
+        await update.message.reply_text(
+
+            "❌ Не удалось выполнить анализ.\n\n"
+
+            "Попробуйте отправить другую фотографию."
+        )
+
+    finally:
+
+        if os.path.exists(
+            temporary_path
+        ):
+
+            os.remove(
+                temporary_path
+            )
+
+
+def main():
+
+    init_database()
+
+    application = (
+        Application
+        .builder()
+        .token(
+            TELEGRAM_BOT_TOKEN
+        )
+        .build()
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "start",
+            start
+        )
+    )
+
+    application.add_handler(
+        CallbackQueryHandler(
+            button_handler
+        )
+    )
+
+    application.add_handler(
+        MessageHandler(
+            filters.PHOTO,
+            handle_photo
+        )
+    )
+
+    application.add_handler(
+        PreCheckoutQueryHandler(
+            precheckout_callback
+        )
+    )
+
+    application.add_handler(
+        MessageHandler(
+            filters.SUCCESSFUL_PAYMENT,
+            successful_payment
+        )
+    )
+
+    print(
+        "================================"
+    )
+
+    print(
+        "Бот запущен."
+    )
+
+    print(
+        "================================"
+    )
+
+    application.run_polling()
+
+
+if __name__ == "__main__":
+
+    main()

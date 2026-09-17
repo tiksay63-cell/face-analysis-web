@@ -1,149 +1,88 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Face Analysis</title>
-
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>PSL Analysis</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
 </head>
-
 <body>
-
 <div class="container">
 
-    <div class="header">
-
-        <div class="logo">
-            FA
+    <!-- Экран загрузки фото -->
+    <div id="uploadScreen">
+        <div class="header">
+            <div class="logo">PSL</div>
+            <div>
+                <h1>Face Analysis</h1>
+                <p>Эстетический анализ внешности</p>
+            </div>
         </div>
 
-        <div>
-            <h1>Face Analysis</h1>
-            <p>Эстетический анализ внешности</p>
+        <div class="card">
+            <h2>Анализ фотографии</h2>
+            <p class="description">
+                Загрузите фотографию лица для PSL + APPIL оценки
+            </p>
+
+            <label class="upload" for="photoInput">
+                <span class="upload-icon">📷</span>
+                <span>Выбрать фотографию</span>
+            </label>
+            <input type="file" id="photoInput" accept="image/*">
+
+            <img id="preview" class="preview">
+
+            <button id="analyzeButton" class="primary-button">
+                Анализировать
+            </button>
         </div>
 
-    </div>
-
-
-    <div class="card">
-
-        <h2>📸 Анализ фотографии</h2>
-
-        <p class="description">
-            Загрузите фотографию лица для краткого
-            визуального анализа.
-        </p>
-
-        <label
-            class="upload"
-            for="photoInput"
-        >
-
-            <span class="upload-icon">
-                📷
-            </span>
-
-            <span>
-                Выбрать фотографию
-            </span>
-
-        </label>
-
-        <input
-            type="file"
-            id="photoInput"
-            accept="image/*"
-        >
-
-        <img
-            id="preview"
-            class="preview"
-        >
-
-        <button
-            id="analyzeButton"
-            class="primary-button"
-        >
-            🔎 Анализировать
-        </button>
-
-    </div>
-
-
-    <div
-        id="resultCard"
-        class="card hidden"
-    >
-
-        <h2>📋 Результат</h2>
-
-        <div id="result"></div>
-
-    </div>
-
-
-    <div class="card premium">
-
-        <div class="premium-icon">
-            💎
+        <div class="card premium">
+            <div class="premium-icon">💎</div>
+            <h2>Полный анализ</h2>
+            <p>Подробный разбор + конкретные рекомендации</p>
+            <button id="premiumButton" class="premium-button">
+                Полный анализ — 100 ⭐
+            </button>
         </div>
-
-        <h2>Полный анализ</h2>
-
-        <p>
-            Подробный анализ пропорций лица,
-            волос, бороды, кожи и визуальной
-            презентации.
-        </p>
-
-        <ul>
-
-            <li>📐 Пропорции лица</li>
-            <li>🗿 Нижняя челюсть</li>
-            <li>👤 Подбородок</li>
-            <li>👃 Нос</li>
-            <li>👁 Орбитальная область</li>
-            <li>💇 Волосы</li>
-            <li>🧔 Борода</li>
-            <li>✨ Кожа</li>
-            <li>💡 Индивидуальные рекомендации</li>
-
-        </ul>
-
-        <button
-            id="premiumButton"
-            class="premium-button"
-        >
-            💎 Полный анализ — 100 ⭐
-        </button>
-
     </div>
 
+    <!-- Экран результата -->
+    <div id="resultScreen" class="hidden">
+        <div class="result-card">
+            <div class="avatar-wrap">
+                <img id="resultAvatar" class="avatar" src="" alt="avatar">
+            </div>
 
-    <p class="footer">
-        Анализ является субъективной оценкой
-        визуальных характеристик фотографии.
-    </p>
+            <div class="score-label">PSL SCORE</div>
+            <div class="score-value">
+                <span id="pslScore">0.0</span><span class="score-max">/10</span>
+            </div>
+
+            <div class="score-bar">
+                <div id="pslBar" class="score-bar-fill"></div>
+            </div>
+
+            <div class="features-title">YOUR FEATURES</div>
+
+            <div class="features" id="featuresList">
+                <!-- Полоски будут добавляться через JS -->
+            </div>
+
+            <div class="tier-row">
+                <span class="tier" id="tierBadge">MTN</span>
+            </div>
+
+            <button id="backButton" class="secondary-button">
+                Новый анализ
+            </button>
+        </div>
+    </div>
 
 </div>
 
-
 <script src="app.js"></script>
-
 </body>
-
 </html>

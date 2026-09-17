@@ -29,6 +29,10 @@ from analyzer import analyze_image
 FULL_ANALYSIS_PRICE = 100
 PHOTO_DIR = "data/photos"
 
+# ===== КАНАЛ =====
+CHANNEL_ID = "@myasnoibulion"
+CHANNEL_LINK = "https://t.me/myasnoibulion"
+
 
 def save_user_photo(user_id, source_path):
     os.makedirs(PHOTO_DIR, exist_ok=True)
@@ -46,7 +50,43 @@ def get_user_photo(user_id):
     return None
 
 
+async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    try:
+        member = await context.bot.get_chat_member(
+            chat_id=CHANNEL_ID,
+            user_id=user_id
+        )
+        return member.status in ("member", "administrator", "creator")
+    except Exception as e:
+        print("Subscription check error:", e)
+        return False
+
+
+async def ask_to_subscribe(update: Update):
+    keyboard = [
+        [InlineKeyboardButton("📢 Подписаться на канал", url=CHANNEL_LINK)],
+        [InlineKeyboardButton("✅ Я подписался", callback_data="check_sub")]
+    ]
+    text = (
+        "🔒 Чтобы пользоваться ботом, нужно подписаться на канал.\n\n"
+        "1. Нажми «Подписаться на канал»\n"
+        "2. Подпишись\n"
+        "3. Вернись и нажми «Я подписался»"
+    )
+
+    if update.message:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if not await check_subscription(user_id, context):
+        await ask_to_subscribe(update)
+        return
+
     keyboard = [
         [InlineKeyboardButton("📸 Анализировать фотографию", callback_data="analyze")],
         [InlineKeyboardButton("📊 Мой лимит", callback_data="limit")],
@@ -109,6 +149,31 @@ async def show_full_analysis_info(query):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
+    user_id = query.from_user.id
+
+    # Проверка подписки на кнопку "Я подписался"
+    if query.data == "check_sub":
+        if await check_subscription(user_id, context):
+            await query.message.reply_text("✅ Подписка подтверждена! Теперь можешь пользоваться ботом.")
+            # Показываем стартовое меню
+            keyboard = [
+                [InlineKeyboardButton("📸 Анализировать фотографию", callback_data="analyze")],
+                [InlineKeyboardButton("📊 Мой лимит", callback_data="limit")],
+                [InlineKeyboardButton("💎 Полный анализ — 100 ⭐", callback_data="full")],
+            ]
+            await query.message.reply_text(
+                "Выберите действие:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        else:
+            await query.message.reply_text("❌ Ты ещё не подписан. Подпишись и нажми кнопку снова.")
+        return
+
+    # Для всех остальных кнопок тоже проверяем подписку
+    if not await check_subscription(user_id, context):
+        await ask_to_subscribe(update)
+        return
 
     if query.data == "analyze":
         await ask_for_photo(query)
@@ -183,6 +248,12 @@ async def send_long_message(message, text):
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+
+    # Проверка подписки
+    if not await check_subscription(user_id, context):
+        await ask_to_subscribe(update)
+        return
+
     used = get_free_analyses(user_id)
 
     if used >= FREE_DAILY_ANALYSES:

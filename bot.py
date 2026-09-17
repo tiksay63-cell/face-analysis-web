@@ -29,7 +29,6 @@ from analyzer import analyze_image
 FULL_ANALYSIS_PRICE = 100
 PHOTO_DIR = "data/photos"
 
-# ===== КАНАЛ =====
 CHANNEL_ID = "@myasnoibulion"
 CHANNEL_LINK = "https://t.me/myasnoibulion"
 
@@ -56,9 +55,9 @@ async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -
             chat_id=CHANNEL_ID,
             user_id=user_id
         )
-        return member.status in ("member", "administrator", "creator")
+        return member.status in ("member", "administrator", "creator", "restricted")
     except Exception as e:
-        print("Subscription check error:", e)
+        print("Ошибка проверки подписки:", e)
         return False
 
 
@@ -152,11 +151,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
 
-    # Проверка подписки на кнопку "Я подписался"
     if query.data == "check_sub":
         if await check_subscription(user_id, context):
             await query.message.reply_text("✅ Подписка подтверждена! Теперь можешь пользоваться ботом.")
-            # Показываем стартовое меню
             keyboard = [
                 [InlineKeyboardButton("📸 Анализировать фотографию", callback_data="analyze")],
                 [InlineKeyboardButton("📊 Мой лимит", callback_data="limit")],
@@ -170,7 +167,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("❌ Ты ещё не подписан. Подпишись и нажми кнопку снова.")
         return
 
-    # Для всех остальных кнопок тоже проверяем подписку
     if not await check_subscription(user_id, context):
         await ask_to_subscribe(update)
         return
@@ -249,7 +245,6 @@ async def send_long_message(message, text):
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
-    # Проверка подписки
     if not await check_subscription(user_id, context):
         await ask_to_subscribe(update)
         return

@@ -25,6 +25,7 @@ from database import (
     add_free_analysis,
 )
 from analyzer import analyze_image
+from image_generator import generate_improved_photo
 
 FULL_ANALYSIS_PRICE = 100
 PHOTO_DIR = "data/photos"
@@ -62,7 +63,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton(
-                "💎 Расширенный анализ — 100 Stars",
+                "💎 Полный анализ — 100 ⭐",
                 callback_data="full"
             )
         ]
@@ -70,17 +71,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Здравствуйте! 👋\n\n"
         "Я выполняю looksmaxxing-анализ лица по фотографии.\n\n"
-        "Что вы получите:\n"
+        "Что вы получите в бесплатном анализе:\n"
         "⭐ PSL-оценку (шкала + тир)\n"
-        "⭐ APPIL-оценку (общая визуальная привлекательность)\n"
+        "⭐ APPIL-оценку\n"
         "📐 Facial thirds, midface ratio, maxilla\n"
         "🗿 Mandible, gonial angle, ramus, chin projection\n"
         "👁️ Hunter eyes, canthal tilt, eye set\n"
         "👃 Нос, philtrum, губы\n"
         "💇 Hairline и причёска\n"
         "🧔 Растительность на лице\n"
-        "📸 Ракурс, освещение и ограничения фото\n"
-        "✨ Визуальная подача\n\n"
+        "📸 Ракурс, освещение и ограничения фото\n\n"
         f"Бесплатно доступно {FREE_DAILY_ANALYSES} коротких анализа в сутки.\n\n"
         "Отправьте фотографию для начала.",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -95,7 +95,7 @@ async def ask_for_photo(query):
         "• лицо полностью в кадре\n"
         "• камера примерно на уровне глаз\n"
         "• нейтральное выражение лица\n"
-        "• фотография чёткая, без сильных фильтров и искажений"
+        "• чёткое изображение без сильных фильтров"
     )
 
 
@@ -115,16 +115,16 @@ async def show_full_analysis_info(query):
     keyboard = [
         [
             InlineKeyboardButton(
-                "💎 Купить за 100 Stars",
+                "💎 Купить полный анализ — 100 ⭐",
                 callback_data="buy_full"
             )
         ]
     ]
     await query.message.reply_text(
-        "💎 РАСШИРЕННЫЙ LOOKSMAXXING-АНАЛИЗ\n\n"
-        "В расширенный разбор входят:\n\n"
-        "⭐ Точная PSL-оценка + тир (Sub5 → Gigachad)\n"
-        "⭐ APPIL-оценка\n"
+        "💎 ПОЛНЫЙ LOOKSMAXXING-АНАЛИЗ\n\n"
+        "После оплаты вы получите:\n\n"
+        "⭐ Точную PSL-оценку + тир (Sub5 → Gigachad)\n"
+        "⭐ APPIL-оценку\n"
         "📐 Подробный разбор facial thirds, midface ratio, maxilla\n"
         "🗿 Mandible, ramus, gonial angle, chin projection\n"
         "👁️ Hunter eyes, canthal tilt, eye set, brow ridge\n"
@@ -135,10 +135,11 @@ async def show_full_analysis_info(query):
         "📸 Глубокий разбор ракурса, освещения и ограничений фото\n"
         "✨ Визуальная подача\n"
         "💡 Конкретные soft-maxxing рекомендации\n"
-        "🎯 Ключевые наблюдения и приоритеты\n\n"
-        "Стоимость: 100 Telegram Stars.\n\n"
-        "После оплаты расширенный анализ будет выполнен "
-        "для последней отправленной фотографии.",
+        "🎯 Ключевые наблюдения\n\n"
+        "🎨 + Обработанная версия фотографии\n"
+        "(улучшенный свет, кожа, волосы, фон и общая подача)\n\n"
+        "Стоимость: 100 ⭐\n\n"
+        "Для покупки нажмите кнопку ниже.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -164,24 +165,23 @@ async def send_full_invoice(query, context):
     if not photo_path:
         await query.message.reply_text(
             "📸 Сначала отправьте фотографию.\n\n"
-            "После этого можно приобрести расширенный анализ."
+            "После этого можно приобрести полный анализ."
         )
         return
 
     await context.bot.send_invoice(
         chat_id=user_id,
-        title="Расширенный looksmaxxing-анализ",
+        title="Полный looksmaxxing-анализ + обработка фото",
         description=(
-            "Полный PSL + APPIL разбор лица, "
-            "детальный анализ костной структуры, "
-            "гармонии и soft-maxxing рекомендации."
+            "Полный PSL + APPIL разбор лица "
+            "и создание улучшенной версии фотографии."
         ),
         payload=f"full_analysis:{user_id}",
         provider_token="",
         currency="XTR",
         prices=[
             LabeledPrice(
-                "Расширенный анализ",
+                "Полный анализ",
                 FULL_ANALYSIS_PRICE
             )
         ]
@@ -200,14 +200,14 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not photo_path:
         await update.message.reply_text(
             "✅ Оплата получена.\n\n"
-            "Но последняя фотография не найдена.\n"
-            "Пожалуйста, отправьте фотографию ещё раз."
+            "Но фотография не найдена.\n"
+            "Пожалуйста, отправьте её ещё раз."
         )
         return
 
     await update.message.reply_text(
-        "💎 Оплата получена!\n\n"
-        "🔎 Выполняю расширенный looksmaxxing-анализ...\n\n"
+        "✅ Оплата получена!\n\n"
+        "🔎 Выполняю полный looksmaxxing-анализ...\n\n"
         "⭐ Считаю PSL и APPIL\n"
         "📐 Разбираю facial thirds и midface\n"
         "🗿 Анализирую mandible, gonial angle, chin\n"
@@ -221,11 +221,28 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
     try:
         result = analyze_image(photo_path, full=True)
         await send_long_message(update.message, result)
+
+        await update.message.reply_text(
+            "🎨 Анализ завершён.\n\n"
+            "Теперь создаю улучшенную версию фотографии..."
+        )
+
+        improved_photo = generate_improved_photo(photo_path)
+
+        with open(improved_photo, "rb") as photo_file:
+            await update.message.reply_photo(
+                photo=photo_file,
+                caption=(
+                    "✨ Готово!\n\n"
+                    "Обработанная looksmaxxing-версия вашей фотографии."
+                )
+            )
+
     except Exception as error:
-        print("FULL ANALYSIS ERROR:")
+        print("FULL ANALYSIS / IMAGE ERROR:")
         print(error)
         await update.message.reply_text(
-            "❌ Не удалось выполнить расширенный анализ.\n\n"
+            "❌ Не удалось завершить обработку.\n\n"
             "Попробуйте ещё раз позже."
         )
 
@@ -245,16 +262,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton(
-                    "💎 Расширенный анализ — 100 Stars",
+                    "💎 Полный анализ — 100 ⭐",
                     callback_data="full"
                 )
             ]
         ]
         await update.message.reply_text(
             "🔒 Бесплатный лимит на сегодня исчерпан.\n\n"
-            f"Использовано: {FREE_DAILY_ANALYSES}/{FREE_DAILY_ANALYSES}\n\n"
+            f"Вы использовали {FREE_DAILY_ANALYSES} бесплатных анализов.\n\n"
             "Для получения полного PSL + APPIL разбора "
-            "можно приобрести расширенный анализ.",
+            "и обработанной фотографии можно приобрести полный анализ.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
@@ -284,14 +301,14 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton(
-                    "💎 Расширенный разбор — 100 Stars",
+                    "💎 Полный анализ — 100 ⭐",
                     callback_data="full"
                 )
             ]
         ]
         await update.message.reply_text(
-            "💡 Хотите получить расширенный PSL + APPIL разбор "
-            "этой фотографии с подробными рекомендациями?",
+            "💡 Хотите получить полный PSL + APPIL разбор "
+            "и обработанную версию этой фотографии?",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
@@ -311,8 +328,7 @@ def main():
     init_database()
 
     application = (
-        Application
-        .builder()
+        Application.builder()
         .token(TELEGRAM_BOT_TOKEN)
         .build()
     )

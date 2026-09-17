@@ -80,7 +80,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "👃 Нос, philtrum, губы\n"
         "💇 Hairline и причёска\n"
         "🧔 Растительность на лице\n"
-        "📸 Ракурс, освещение и ограничения фото\n\n"
+        "📸 Ракурс, освещение и ограничения фото\n"
+        "🎨 + Улучшенная версия фотографии\n\n"
         f"Бесплатно доступно {FREE_DAILY_ANALYSES} коротких анализа в сутки.\n\n"
         "Отправьте фотографию для начала.",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -136,8 +137,6 @@ async def show_full_analysis_info(query):
         "✨ Визуальная подача\n"
         "💡 Конкретные soft-maxxing рекомендации\n"
         "🎯 Ключевые наблюдения\n\n"
-        "🎨 + Обработанная версия фотографии\n"
-        "(улучшенный свет, кожа, волосы, фон и общая подача)\n\n"
         "Стоимость: 100 ⭐\n\n"
         "Для покупки нажмите кнопку ниже.",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -171,10 +170,10 @@ async def send_full_invoice(query, context):
 
     await context.bot.send_invoice(
         chat_id=user_id,
-        title="Полный looksmaxxing-анализ + обработка фото",
+        title="Полный looksmaxxing-анализ",
         description=(
             "Полный PSL + APPIL разбор лица "
-            "и создание улучшенной версии фотографии."
+            "с подробными soft-maxxing рекомендациями."
         ),
         payload=f"full_analysis:{user_id}",
         provider_token="",
@@ -222,27 +221,11 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         result = analyze_image(photo_path, full=True)
         await send_long_message(update.message, result)
 
-        await update.message.reply_text(
-            "🎨 Анализ завершён.\n\n"
-            "Теперь создаю улучшенную версию фотографии..."
-        )
-
-        improved_photo = generate_improved_photo(photo_path)
-
-        with open(improved_photo, "rb") as photo_file:
-            await update.message.reply_photo(
-                photo=photo_file,
-                caption=(
-                    "✨ Готово!\n\n"
-                    "Обработанная looksmaxxing-версия вашей фотографии."
-                )
-            )
-
     except Exception as error:
-        print("FULL ANALYSIS / IMAGE ERROR:")
+        print("FULL ANALYSIS ERROR:")
         print(error)
         await update.message.reply_text(
-            "❌ Не удалось завершить обработку.\n\n"
+            "❌ Не удалось выполнить полный анализ.\n\n"
             "Попробуйте ещё раз позже."
         )
 
@@ -271,7 +254,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🔒 Бесплатный лимит на сегодня исчерпан.\n\n"
             f"Вы использовали {FREE_DAILY_ANALYSES} бесплатных анализов.\n\n"
             "Для получения полного PSL + APPIL разбора "
-            "и обработанной фотографии можно приобрести полный анализ.",
+            "можно приобрести полный анализ.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
@@ -293,11 +276,29 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await telegram_file.download_to_drive(temporary_path)
         save_user_photo(user_id, temporary_path)
 
+        # Короткий анализ
         result = analyze_image(temporary_path, full=False)
         add_free_analysis(user_id)
 
         await send_long_message(update.message, result)
 
+        # Сразу создаём и отправляем улучшенную фотографию (бесплатно)
+        await update.message.reply_text(
+            "🎨 Создаю улучшенную версию фотографии..."
+        )
+
+        improved_photo = generate_improved_photo(temporary_path)
+
+        with open(improved_photo, "rb") as photo_file:
+            await update.message.reply_photo(
+                photo=photo_file,
+                caption=(
+                    "✨ Готово!\n\n"
+                    "Обработанная looksmaxxing-версия вашей фотографии."
+                )
+            )
+
+        # Предложение купить полный анализ
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -308,7 +309,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         await update.message.reply_text(
             "💡 Хотите получить полный PSL + APPIL разбор "
-            "и обработанную версию этой фотографии?",
+            "этой фотографии с подробными рекомендациями?",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 

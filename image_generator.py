@@ -1,86 +1,59 @@
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    used = get_free_analyses(user_id)
+import base64
+import os
+from openai import OpenAI
+from config import OPENAI_API_KEY
 
-    if used >= FREE_DAILY_ANALYSES:
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "💎 Полный анализ — 100 ⭐",
-                    callback_data="full"
-                )
-            ]
-        ]
-        await update.message.reply_text(
-            "🔒 Бесплатный лимит на сегодня исчерпан.\n\n"
-            f"Вы использовали {FREE_DAILY_ANALYSES} бесплатных анализов.\n\n"
-            "Для получения полного PSL + APPIL разбора "
-            "можно приобрести полный анализ.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
+client = OpenAI(
+    api_key=OPENAI_API_KEY
+)
 
-    await update.message.reply_text(
-        "🔎 Анализирую фотографию...\n\n"
-        "⭐ Считаю PSL и APPIL\n"
-        "📐 Смотрю пропорции и костную структуру\n"
-        "⏳ Пожалуйста, подождите."
+EDIT_PROMPT = """
+Transform this portrait into a highly attractive, polished, high-end looksmaxxing version of the same person.
+
+Goals:
+- Make the person look significantly more attractive, clean, sharp and high-value.
+- Improve skin quality: clearer, smoother, healthier, with natural glow (remove acne, redness, uneven tone, dark circles if present).
+- Enhance eye area: brighter, clearer eyes, better definition, subtle positive canthal tilt effect through lighting if possible.
+- Improve jawline definition and facial angularity through professional lighting and subtle contouring (do not reshape the actual bone structure).
+- Make hair look denser, cleaner, better styled and more attractive.
+- Optimize lighting: soft but directional, flattering, high-end studio quality.
+- Improve color, contrast, sharpness and overall photographic quality.
+- Clean / replace background with a premium, minimal, professional one.
+- Improve clothing presentation if visible.
+
+Critical rules:
+- The result MUST still clearly be the same person.
+- Do NOT drastically change facial proportions, nose shape, eye shape, lip shape or overall bone structure.
+- Do NOT turn the person into a completely different face.
+- Keep the transformation realistic and believable (high-end retouch + flattering photography, not plastic surgery).
+- Prefer natural attractiveness over over-processed "AI face".
+
+Style target: premium male/female portrait used in high-end dating profiles, fashion lookbooks or professional headshots after soft-maxxing.
+"""
+
+def generate_improved_photo(image_path):
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
+
+    response = client.images.edit(
+        model="gpt-image-2",
+        image=image_bytes,
+        prompt=EDIT_PROMPT,
     )
 
-    photo = update.message.photo[-1]
-    telegram_file = await photo.get_file()
+    if not response.data:
+        raise RuntimeError("Image API returned no image.")
 
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp:
-        temporary_path = temp.name
+    image_base64 = response.data[0].b64_json
+    if not image_base64:
+        raise RuntimeError("Image API returned empty image data.")
 
-    try:
-        await telegram_file.download_to_drive(temporary_path)
-        save_user_photo(user_id, temporary_path)
+    output_path = "data/improved_photo.png"
+    os.makedirs("data", exist_ok=True)
 
-        # Короткий анализ
-        result = analyze_image(temporary_path, full=False)
-        add_free_analysis(user_id)
-
-        await send_long_message(update.message, result)
-
-        # Сразу создаём и отправляем улучшенную фотографию (бесплатно)
-        await update.message.reply_text(
-            "🎨 Создаю улучшенную версию фотографии..."
+    with open(output_path, "wb") as output_file:
+        output_file.write(
+            base64.b64decode(image_base64)
         )
 
-        improved_photo = generate_improved_photo(temporary_path)
-
-        with open(improved_photo, "rb") as photo_file:
-            await update.message.reply_photo(
-                photo=photo_file,
-                caption=(
-                    "✨ Готово!\n\n"
-                    "Обработанная looksmaxxing-версия вашей фотографии."
-                )
-            )
-
-        # Предложение купить полный анализ
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "💎 Полный анализ — 100 ⭐",
-                    callback_data="full"
-                )
-            ]
-        ]
-        await update.message.reply_text(
-            "💡 Хотите получить полный PSL + APPIL разбор "
-            "этой фотографии с подробными рекомендациями?",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-
-    except Exception as error:
-        print("PHOTO ANALYSIS ERROR:")
-        print(error)
-        await update.message.reply_text(
-            "❌ Не удалось выполнить анализ.\n\n"
-            "Попробуйте отправить другую фотографию."
-        )
-    finally:
-        if os.path.exists(temporary_path):
-            os.remove(temporary_path)
+    return output_path

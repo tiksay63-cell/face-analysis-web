@@ -1,6 +1,6 @@
+```python
 import os
 import tempfile
-import sqlite3
 
 from telegram import (
     Update,
@@ -48,16 +48,25 @@ PHOTO_DIR = "data/photos"
 
 def save_user_photo(user_id, source_path):
 
-    os.makedirs(PHOTO_DIR, exist_ok=True)
+    os.makedirs(
+        PHOTO_DIR,
+        exist_ok=True
+    )
 
     destination = os.path.join(
         PHOTO_DIR,
         f"{user_id}.jpg"
     )
 
-    with open(source_path, "rb") as source:
+    with open(
+        source_path,
+        "rb"
+    ) as source:
 
-        with open(destination, "wb") as destination_file:
+        with open(
+            destination,
+            "wb"
+        ) as destination_file:
 
             destination_file.write(
                 source.read()
@@ -107,7 +116,7 @@ async def start(
 
         [
             InlineKeyboardButton(
-                "💎 Полный анализ — 100 ⭐",
+                "💎 Расширенный анализ — 100 Stars",
                 callback_data="full"
             )
         ]
@@ -118,18 +127,19 @@ async def start(
 
         "Здравствуйте! 👋\n\n"
 
-        "Я выполняю визуальный эстетический анализ "
+        "Я выполняю визуальный анализ "
         "фотографии лица.\n\n"
 
         "Анализируются видимые характеристики:\n"
-        "📐 симметрия и пропорции\n"
+        "📐 пропорции и симметрия\n"
         "🗿 нижняя треть лица\n"
+        "👤 подбородок\n"
+        "👁️ глаза и орбитальная зона\n"
         "👃 нос\n"
-        "👁 орбитальная область\n"
-        "💇 линия роста волос\n"
-        "🧔 борода\n"
-        "✨ кожа\n"
-        "📸 ракурс и освещение\n\n"
+        "💇 волосы\n"
+        "🧔 растительность на лице\n"
+        "📸 ракурс и освещение\n"
+        "✨ визуальная подача\n\n"
 
         f"Бесплатно доступно "
         f"{FREE_DAILY_ANALYSES} анализа в сутки.\n\n"
@@ -143,23 +153,21 @@ async def start(
 
 
 # ============================================================
-# КНОПКА "АНАЛИЗИРОВАТЬ"
+# ПРОСЬБА О ФОТО
 # ============================================================
 
-async def ask_for_photo(
-    query
-):
+async def ask_for_photo(query):
 
     await query.message.reply_text(
 
         "📸 Отправьте фотографию лица.\n\n"
 
-        "Для более корректного визуального анализа "
-        "желательно использовать фотографию, где:\n"
-        "• лицо хорошо освещено\n"
-        "• лицо не закрыто предметами\n"
-        "• камера находится примерно на уровне глаз\n"
-        "• изображение достаточно чёткое"
+        "Для более корректного анализа желательно:\n"
+        "• хорошее освещение\n"
+        "• лицо полностью видно\n"
+        "• камера примерно на уровне глаз\n"
+        "• фотография достаточно чёткая\n"
+        "• без сильных фильтров"
     )
 
 
@@ -167,9 +175,7 @@ async def ask_for_photo(
 # ЛИМИТ
 # ============================================================
 
-async def show_limit(
-    query
-):
+async def show_limit(query):
 
     user_id = query.from_user.id
 
@@ -186,26 +192,25 @@ async def show_limit(
 
         "📊 ВАШ ЛИМИТ\n\n"
 
-        f"Бесплатных анализов сегодня: "
+        f"Использовано сегодня: "
         f"{used}/{FREE_DAILY_ANALYSES}\n\n"
 
-        f"Осталось: {remaining}"
+        f"Осталось бесплатных анализов: "
+        f"{remaining}"
     )
 
 
 # ============================================================
-# ИНФОРМАЦИЯ О ПОЛНОМ АНАЛИЗЕ
+# ИНФОРМАЦИЯ О РАСШИРЕННОМ АНАЛИЗЕ
 # ============================================================
 
-async def show_full_analysis_info(
-    query
-):
+async def show_full_analysis_info(query):
 
     keyboard = [
 
         [
             InlineKeyboardButton(
-                "💎 Купить полный анализ — 100 ⭐",
+                "💎 Купить за 100 Stars",
                 callback_data="buy_full"
             )
         ]
@@ -214,26 +219,26 @@ async def show_full_analysis_info(
 
     await query.message.reply_text(
 
-        "💎 ПОЛНЫЙ ЭСТЕТИЧЕСКИЙ АНАЛИЗ\n\n"
+        "💎 РАСШИРЕННЫЙ ВИЗУАЛЬНЫЙ АНАЛИЗ\n\n"
 
-        "В расширенный анализ входят:\n\n"
+        "В расширенный разбор входят:\n\n"
 
-        "📐 подробные пропорции лица\n"
-        "🗿 Mandibula — нижняя челюсть\n"
-        "👤 Mentum — подбородок\n"
-        "👃 Nasus — нос\n"
-        "👁 Regio orbitalis — орбитальная область\n"
-        "💇 Capilli — волосы\n"
-        "🧔 Barba — борода\n"
-        "✨ Cutis — кожа\n"
+        "📐 подробные пропорции\n"
+        "🗿 нижняя треть лица\n"
+        "👤 подбородок\n"
+        "👁️ глаза и орбитальная зона\n"
+        "👃 визуальный разбор носа\n"
+        "👄 область рта\n"
+        "💇 волосы и линия роста\n"
+        "🧔 растительность на лице\n"
         "📸 ракурс и освещение\n"
-        "👕 общая визуальная презентация\n"
+        "✨ визуальная подача\n"
         "💡 индивидуальные рекомендации\n"
-        "📋 приоритетный план улучшения\n\n"
+        "🎯 приоритетный план\n\n"
 
-        "Стоимость: 100 ⭐\n\n"
+        "Стоимость: 100 Telegram Stars.\n\n"
 
-        "После оплаты полный анализ будет "
+        "После оплаты расширенный анализ будет "
         "выполнен для последней отправленной "
         "фотографии.",
 
@@ -302,7 +307,9 @@ async def send_full_invoice(
         await query.message.reply_text(
 
             "📸 Сначала отправьте фотографию.\n\n"
-            "После этого можно приобрести полный анализ."
+
+            "После этого можно приобрести "
+            "расширенный анализ."
         )
 
         return
@@ -311,12 +318,12 @@ async def send_full_invoice(
 
         chat_id=user_id,
 
-        title="Полный эстетический анализ",
+        title="Расширенный визуальный анализ",
 
         description=(
             "Подробный визуальный анализ "
-            "пропорций лица, волос, бороды, "
-            "кожи, стиля и визуальной презентации."
+            "фотографии лица и рекомендации "
+            "по визуальной подаче."
         ),
 
         payload=f"full_analysis:{user_id}",
@@ -327,7 +334,7 @@ async def send_full_invoice(
 
         prices=[
             LabeledPrice(
-                "Полный анализ",
+                "Расширенный анализ",
                 FULL_ANALYSIS_PRICE
             )
         ]
@@ -370,17 +377,26 @@ async def successful_payment(
         await update.message.reply_text(
 
             "✅ Оплата получена.\n\n"
-            "Но фотография не найдена. "
-            "Пожалуйста, отправьте её ещё раз."
+
+            "Но последняя фотография не найдена.\n"
+            "Пожалуйста, отправьте фотографию ещё раз."
         )
 
         return
 
     await update.message.reply_text(
 
-        "✅ Оплата получена.\n\n"
-        "🔎 Выполняю полный анализ...\n"
-        "Это может занять некоторое время."
+        "💎 Оплата получена!\n\n"
+
+        "🔎 Выполняю расширенный анализ...\n\n"
+
+        "📐 Проверяю пропорции\n"
+        "🗿 Анализирую нижнюю треть\n"
+        "👁️ Анализирую область глаз\n"
+        "👃 Анализирую нос\n"
+        "💇 Анализирую волосы\n"
+        "📸 Проверяю фотографию\n"
+        "💡 Подготавливаю рекомендации..."
     )
 
     try:
@@ -401,11 +417,15 @@ async def successful_payment(
             "FULL ANALYSIS ERROR:"
         )
 
-        print(error)
+        print(
+            error
+        )
 
         await update.message.reply_text(
 
-            "❌ Не удалось выполнить полный анализ.\n\n"
+            "❌ Не удалось выполнить "
+            "расширенный анализ.\n\n"
+
             "Попробуйте ещё раз позже."
         )
 
@@ -419,243 +439,5 @@ async def send_long_message(
     text
 ):
 
-    max_length = 4000
-
-    for start in range(
-        0,
-        len(text),
-        max_length
-    ):
-
-        part = text[
-            start:start + max_length
-        ]
-
-        await message.reply_text(
-            part
-        )
-
-
-# ============================================================
-# ОБРАБОТКА ФОТОГРАФИИ
-# ============================================================
-
-async def handle_photo(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
-
-    user_id = update.effective_user.id
-
-    used = get_free_analyses(
-        user_id
-    )
-
-    # Проверяем бесплатный лимит
-
-    if used >= FREE_DAILY_ANALYSES:
-
-        keyboard = [
-
-            [
-                InlineKeyboardButton(
-                    "💎 Полный анализ — 100 ⭐",
-                    callback_data="full"
-                )
-            ]
-
-        ]
-
-        await update.message.reply_text(
-
-            "🔒 Бесплатный лимит на сегодня исчерпан.\n\n"
-
-            "Вы использовали "
-            f"{FREE_DAILY_ANALYSES} бесплатных анализов.\n\n"
-
-            "Для подробного анализа можно "
-            "приобрести полный разбор.",
-
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
-        )
-
-        return
-
-    await update.message.reply_text(
-        "🔎 Анализирую фотографию..."
-    )
-
-    photo = update.message.photo[-1]
-
-    telegram_file = await photo.get_file()
-
-    with tempfile.NamedTemporaryFile(
-        suffix=".jpg",
-        delete=False
-    ) as temp:
-
-        temporary_path = temp.name
-
-    try:
-
-        await telegram_file.download_to_drive(
-            temporary_path
-        )
-
-        # Сохраняем фотографию пользователя
-
-        save_user_photo(
-            user_id,
-            temporary_path
-        )
-
-        # Краткий анализ
-
-        result = analyze_image(
-            temporary_path,
-            full=False
-        )
-
-        # Засчитываем бесплатный анализ
-
-        add_free_analysis(
-            user_id
-        )
-
-        await send_long_message(
-            update.message,
-            result
-        )
-
-        # Показываем кнопку полного анализа
-
-        keyboard = [
-
-            [
-                InlineKeyboardButton(
-                    "💎 Полный анализ — 100 ⭐",
-                    callback_data="full"
-                )
-            ]
-
-        ]
-
-        await update.message.reply_text(
-
-            "Хотите получить подробный разбор "
-            "этой фотографии?",
-
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
-        )
-
-    except Exception as error:
-
-        print(
-            "PHOTO ANALYSIS ERROR:"
-        )
-
-        print(error)
-
-        await update.message.reply_text(
-
-            "❌ Не удалось выполнить анализ.\n\n"
-            "Попробуйте отправить другую фотографию."
-        )
-
-    finally:
-
-        if os.path.exists(
-            temporary_path
-        ):
-
-            os.remove(
-                temporary_path
-            )
-
-
-# ============================================================
-# ЗАПУСК
-# ============================================================
-
-def main():
-
-    init_database()
-
-    application = (
-        Application
-        .builder()
-        .token(
-            TELEGRAM_BOT_TOKEN
-        )
-        .build()
-    )
-
-    # /start
-
-    application.add_handler(
-        CommandHandler(
-            "start",
-            start
-        )
-    )
-
-    # Кнопки
-
-    application.add_handler(
-        CallbackQueryHandler(
-            button_handler
-        )
-    )
-
-    # Фотографии
-
-    application.add_handler(
-        MessageHandler(
-            filters.PHOTO,
-            handle_photo
-        )
-    )
-
-    # Проверка оплаты
-
-    application.add_handler(
-        PreCheckoutQueryHandler(
-            precheckout_callback
-        )
-    )
-
-    # Успешная оплата
-
-    application.add_handler(
-        MessageHandler(
-            filters.SUCCESSFUL_PAYMENT,
-            successful_payment
-        )
-    )
-
-    print(
-        "================================"
-    )
-
-    print(
-        "Бот запущен."
-    )
-
-    print(
-        "================================"
-    )
-
-    application.run_polling()
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
-if __name__ == "__main__":
-
-    main()
+    max_leng_
+```

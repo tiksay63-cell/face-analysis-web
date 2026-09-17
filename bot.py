@@ -25,7 +25,6 @@ from database import (
     add_free_analysis,
 )
 from analyzer import analyze_image
-from image_generator import generate_improved_photo
 
 FULL_ANALYSIS_PRICE = 100
 PHOTO_DIR = "data/photos"
@@ -56,13 +55,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Здравствуйте! 👋\n\n"
         "Я делаю looksmaxxing-анализ лица по фотографии.\n\n"
-        "В бесплатном анализе вы получите:\n"
-        "⭐ PSL-оценку + тир\n"
-        "⭐ APPIL-оценку\n"
-        "📐 Разбор пропорций и костной структуры\n"
-        "👁️ Глаза, нос, челюсть, подбородок\n"
-        "💇 Волосы и растительность\n"
-        "🎨 + Улучшенную версию фотографии\n\n"
+        "Бесплатный анализ:\n"
+        "⭐ PSL + APPIL оценка\n"
+        "📐 Разбор пропорций и структуры\n"
+        "⚠️ Намёки, что можно улучшить\n\n"
+        "Полный анализ (100 ⭐):\n"
+        "💡 Конкретные soft-maxxing рекомендации\n\n"
         f"Бесплатно: {FREE_DAILY_ANALYSES} анализа в сутки.\n\n"
         "Просто отправьте фотографию.",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -72,7 +70,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ask_for_photo(query):
     await query.message.reply_text(
         "📸 Отправьте фотографию лица.\n\n"
-        "Рекомендации для лучшего результата:\n"
+        "Рекомендации:\n"
         "• хорошее освещение\n"
         "• лицо полностью в кадре\n"
         "• камера на уровне глаз\n"
@@ -100,9 +98,8 @@ async def show_full_analysis_info(query):
         "💎 Полный looksmaxxing-анализ\n\n"
         "Вы получите:\n"
         "⭐ Точную PSL + APPIL оценку\n"
-        "📐 Подробный разбор всех зон лица\n"
-        "👁️ Hunter eyes, canthal tilt, jawline и т.д.\n"
-        "💡 Конкретные soft-maxxing рекомендации\n"
+        "📐 Подробный разбор всех зон\n"
+        "💡 Конкретные рекомендации, что и как улучшить\n"
         "🎯 Приоритетные наблюдения\n\n"
         "Стоимость: 100 ⭐",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -137,7 +134,7 @@ async def send_full_invoice(query, context):
     await context.bot.send_invoice(
         chat_id=user_id,
         title="Полный looksmaxxing-анализ",
-        description="Полный PSL + APPIL разбор с рекомендациями",
+        description="Полный PSL + APPIL разбор с конкретными рекомендациями",
         payload=f"full_analysis:{user_id}",
         provider_token="",
         currency="XTR",
@@ -165,7 +162,7 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "✅ Оплата получена!\n\n"
         "🔎 Делаю полный анализ...\n"
         "⭐ Считаю PSL и APPIL\n"
-        "⏳ Подождите."
+        "💡 Готовлю рекомендации..."
     )
 
     try:
@@ -174,8 +171,7 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as error:
         print("FULL ANALYSIS ERROR:", error)
         await update.message.reply_text(
-            "❌ Не удалось выполнить полный анализ.\n"
-            f"Ошибка: {error}"
+            f"❌ Не удалось выполнить полный анализ.\nОшибка: {error}"
         )
 
 
@@ -215,40 +211,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await telegram_file.download_to_drive(temporary_path)
         save_user_photo(user_id, temporary_path)
 
-        # Анализ
         result = analyze_image(temporary_path, full=False)
         add_free_analysis(user_id)
         await send_long_message(update.message, result)
 
-        # Генерация улучшенного фото
-        await update.message.reply_text("🎨 Создаю улучшенную версию фотографии...")
-
-        try:
-            improved_photo = generate_improved_photo(temporary_path)
-            with open(improved_photo, "rb") as photo_file:
-                await update.message.reply_photo(
-                    photo=photo_file,
-                    caption="✨ Готово! Обработанная looksmaxxing-версия."
-                )
-        except Exception as img_error:
-            print("IMAGE GENERATION ERROR:", img_error)
-            await update.message.reply_text(
-                "❌ Не удалось создать улучшенную фотографию.\n\n"
-                f"Ошибка: {img_error}"
-            )
-
-        # Предложение полного анализа
         keyboard = [[InlineKeyboardButton("💎 Полный анализ — 100 ⭐", callback_data="full")]]
         await update.message.reply_text(
-            "💡 Хотите полный разбор с рекомендациями?",
+            "💡 Хотите узнать конкретные рекомендации, как улучшить результат?",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
     except Exception as error:
         print("PHOTO ANALYSIS ERROR:", error)
         await update.message.reply_text(
-            "❌ Не удалось выполнить анализ.\n\n"
-            f"Ошибка: {error}"
+            f"❌ Не удалось выполнить анализ.\nОшибка: {error}"
         )
     finally:
         if os.path.exists(temporary_path):

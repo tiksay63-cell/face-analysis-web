@@ -1,7 +1,5 @@
 python-telegram-bot
 openai
-python-dotenv
 fastapi
 uvicorn
 python-multipart
-requests

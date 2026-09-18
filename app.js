@@ -4,8 +4,11 @@ tg.expand();
 tg.setHeaderColor("#0b0d12");
 tg.setBackgroundColor("#0b0d12");
 
-// ←←← СЮДА ВСТАВЬ URL СВОЕГО API ПОСЛЕ ДЕПЛОЯ
-const API_URL = "https://XXXX.up.railway.app/analyze";
+// ========== ВСТАВЬ СВОЮ ССЫЛКУ API ==========
+// Пример: если домен https://face-analysis-web-production-abcd.up.railway.app
+// то пиши так:
+const API_URL = "https://ВСТАВЬ-СВОЙ-ДОМЕН.up.railway.app/analyze";
+// ============================================
 
 const photoInput = document.getElementById("photoInput");
 const preview = document.getElementById("preview");
@@ -57,7 +60,7 @@ analyzeBtn.addEventListener("click", async () => {
     showResult(data);
   } catch (e) {
     console.error(e);
-    tg.showAlert("Ошибка: " + (e.message || e));
+    tg.showAlert("Ошибка: " + String(e.message || e));
   } finally {
     analyzeBtn.disabled = false;
     analyzeBtn.textContent = "Анализировать";

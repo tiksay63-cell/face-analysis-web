@@ -6,90 +6,98 @@ tg.setBackgroundColor("#0b0d12");
 
 const photoInput = document.getElementById("photoInput");
 const preview = document.getElementById("preview");
-const analyzeButton = document.getElementById("analyzeButton");
-const premiumButton = document.getElementById("premiumButton");
+const analyzeBtn = document.getElementById("analyzeBtn");
+const premiumBtn = document.getElementById("premiumBtn");
 const uploadScreen = document.getElementById("uploadScreen");
 const resultScreen = document.getElementById("resultScreen");
 const resultAvatar = document.getElementById("resultAvatar");
-const pslScoreEl = document.getElementById("pslScore");
-const pslBar = document.getElementById("pslBar");
-const featuresList = document.getElementById("featuresList");
-const tierBadge = document.getElementById("tierBadge");
-const backButton = document.getElementById("backButton");
+const pslNum = document.getElementById("pslNum");
+const pslFill = document.getElementById("pslFill");
+const featuresEl = document.getElementById("features");
+const backBtn = document.getElementById("backBtn");
 
-let currentPhotoData = null;
+let photoData = null;
 
-photoInput.addEventListener("change", function () {
-    const file = photoInput.files[0];
-    if (!file) return;
+function tierFromPSL(psl) {
+  if (psl <= 3.0) return "Sub3";
+  if (psl <= 4.5) return "Sub5";
+  if (psl <= 5.5) return "LTN";
+  if (psl <= 6.4) return "MTN";
+  if (psl <= 7.2) return "HTN";
+  if (psl <= 7.9) return "Chadlite";
+  if (psl <= 8.9) return "Chad";
+  return "Gigachad";
+}
 
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        currentPhotoData = e.target.result;
-        preview.src = currentPhotoData;
-        preview.style.display = "block";
-    };
-    reader.readAsDataURL(file);
+photoInput.addEventListener("change", () => {
+  const file = photoInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoData = e.target.result;
+    preview.src = photoData;
+    preview.style.display = "block";
+  };
+  reader.readAsDataURL(file);
 });
 
-analyzeButton.addEventListener("click", function () {
-    if (!photoInput.files[0]) {
-        tg.showAlert("Сначала выберите фотографию.");
-        return;
-    }
+analyzeBtn.addEventListener("click", () => {
+  if (!photoInput.files[0]) {
+    tg.showAlert("Сначала выбери фото");
+    return;
+  }
 
-    // Пока заглушка — потом подключим сервер
-    // Здесь имитируем ответ бота
-    showResult({
-        psl: 6.4,
-        tier: "HTN",
-        features: [
-            { name: "Глаза", score: 6.9 },
-            { name: "Нос", score: 6.3 },
-            { name: "Губы", score: 6.4 },
-            { name: "Скулы", score: 6.1 },
-            { name: "Челюсть", score: 5.8 },
-            { name: "Кожа", score: 6.7 },
-            { name: "Гармония", score: 6.3 }
-        ]
-    });
+  // Заглушка результата (потом подключим сервер)
+  // Имитируем ответ в стиле бота
+  const mock = {
+    psl: 6.4,
+    features: [
+      { name: "Глаза", score: 6.9 },
+      { name: "Нос", score: 6.3 },
+      { name: "Губы", score: 6.4 },
+      { name: "Скулы", score: 6.1 },
+      { name: "Челюсть", score: 5.8 },
+      { name: "Кожа", score: 6.7 },
+      { name: "Гармония", score: 6.3 }
+    ]
+  };
+  showResult(mock);
 });
 
-premiumButton.addEventListener("click", function () {
-    tg.showAlert("Полный анализ покупается через Telegram Stars в боте.");
+premiumBtn.addEventListener("click", () => {
+  tg.showAlert("Полный анализ покупается через Stars в боте");
 });
 
-backButton.addEventListener("click", function () {
-    resultScreen.classList.add("hidden");
-    uploadScreen.classList.remove("hidden");
+backBtn.addEventListener("click", () => {
+  resultScreen.classList.add("hidden");
+  uploadScreen.classList.remove("hidden");
 });
 
 function showResult(data) {
-    uploadScreen.classList.add("hidden");
-    resultScreen.classList.remove("hidden");
+  uploadScreen.classList.add("hidden");
+  resultScreen.classList.remove("hidden");
 
-    resultAvatar.src = currentPhotoData;
-    pslScoreEl.textContent = data.psl.toFixed(1);
-    pslBar.style.width = (data.psl * 10) + "%";
-    tierBadge.textContent = data.tier;
+  resultAvatar.src = photoData;
+  pslNum.textContent = data.psl.toFixed(1);
+  pslFill.style.width = (data.psl * 10) + "%";
 
-    featuresList.innerHTML = "";
+  const tier = tierFromPSL(data.psl);
+  document.querySelectorAll(".tiers span").forEach(el => {
+    el.classList.toggle("active", el.dataset.t === tier);
+  });
 
-    data.features.forEach((f, i) => {
-        const row = document.createElement("div");
-        row.className = "feature";
-        row.innerHTML = `
-            <div class="feature-name">${f.name}</div>
-            <div class="feature-bar">
-                <div class="feature-bar-fill" id="bar-${i}"></div>
-            </div>
-            <div class="feature-score">${f.score.toFixed(1)}</div>
-        `;
-        featuresList.appendChild(row);
-
-        // Анимация полосок
-        setTimeout(() => {
-            document.getElementById(`bar-${i}`).style.width = (f.score * 10) + "%";
-        }, 100 + i * 80);
-    });
+  featuresEl.innerHTML = "";
+  data.features.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.className = "feature";
+    row.innerHTML = `
+      <div class="f-name">${f.name}</div>
+      <div class="f-bar"><div class="f-fill" id="b${i}"></div></div>
+      <div class="f-score">${f.score.toFixed(1)}</div>
+    `;
+    featuresEl.appendChild(row);
+    setTimeout(() => {
+      document.getElementById("b" + i).style.width = (f.score * 10) + "%";
+    }, 80 + i * 70);
+  });
 }

@@ -4,6 +4,9 @@ tg.expand();
 tg.setHeaderColor("#0b0d12");
 tg.setBackgroundColor("#0b0d12");
 
+// ←←← СЮДА ВСТАВЬ URL СВОЕГО API ПОСЛЕ ДЕПЛОЯ
+const API_URL = "https://XXXX.up.railway.app/analyze";
+
 const photoInput = document.getElementById("photoInput");
 const preview = document.getElementById("preview");
 const analyzeBtn = document.getElementById("analyzeBtn");
@@ -17,21 +20,12 @@ const featuresEl = document.getElementById("features");
 const backBtn = document.getElementById("backBtn");
 
 let photoData = null;
-
-function tierFromPSL(psl) {
-  if (psl <= 3.0) return "Sub3";
-  if (psl <= 4.5) return "Sub5";
-  if (psl <= 5.5) return "LTN";
-  if (psl <= 6.4) return "MTN";
-  if (psl <= 7.2) return "HTN";
-  if (psl <= 7.9) return "Chadlite";
-  if (psl <= 8.9) return "Chad";
-  return "Gigachad";
-}
+let photoFile = null;
 
 photoInput.addEventListener("change", () => {
   const file = photoInput.files[0];
   if (!file) return;
+  photoFile = file;
   const reader = new FileReader();
   reader.onload = e => {
     photoData = e.target.result;
@@ -41,31 +35,37 @@ photoInput.addEventListener("change", () => {
   reader.readAsDataURL(file);
 });
 
-analyzeBtn.addEventListener("click", () => {
-  if (!photoInput.files[0]) {
+analyzeBtn.addEventListener("click", async () => {
+  if (!photoFile) {
     tg.showAlert("Сначала выбери фото");
     return;
   }
 
-  // Заглушка результата (потом подключим сервер)
-  // Имитируем ответ в стиле бота
-  const mock = {
-    psl: 6.4,
-    features: [
-      { name: "Глаза", score: 6.9 },
-      { name: "Нос", score: 6.3 },
-      { name: "Губы", score: 6.4 },
-      { name: "Скулы", score: 6.1 },
-      { name: "Челюсть", score: 5.8 },
-      { name: "Кожа", score: 6.7 },
-      { name: "Гармония", score: 6.3 }
-    ]
-  };
-  showResult(mock);
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = "Анализ...";
+
+  try {
+    const form = new FormData();
+    form.append("file", photoFile);
+
+    const res = await fetch(API_URL, { method: "POST", body: form });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || "Ошибка сервера");
+    }
+    const data = await res.json();
+    showResult(data);
+  } catch (e) {
+    console.error(e);
+    tg.showAlert("Ошибка: " + (e.message || e));
+  } finally {
+    analyzeBtn.disabled = false;
+    analyzeBtn.textContent = "Анализировать";
+  }
 });
 
 premiumBtn.addEventListener("click", () => {
-  tg.showAlert("Полный анализ покупается через Stars в боте");
+  tg.showAlert("Полный анализ — в боте за 100 Stars");
 });
 
 backBtn.addEventListener("click", () => {
@@ -78,26 +78,29 @@ function showResult(data) {
   resultScreen.classList.remove("hidden");
 
   resultAvatar.src = photoData;
-  pslNum.textContent = data.psl.toFixed(1);
-  pslFill.style.width = (data.psl * 10) + "%";
+  const psl = Number(data.psl) || 5;
+  pslNum.textContent = psl.toFixed(1);
+  pslFill.style.width = Math.min(100, psl * 10) + "%";
 
-  const tier = tierFromPSL(data.psl);
+  const tier = data.tier || "MTN";
   document.querySelectorAll(".tiers span").forEach(el => {
     el.classList.toggle("active", el.dataset.t === tier);
   });
 
   featuresEl.innerHTML = "";
-  data.features.forEach((f, i) => {
+  (data.features || []).forEach((f, i) => {
+    const score = Number(f.score) || 5;
     const row = document.createElement("div");
     row.className = "feature";
     row.innerHTML = `
       <div class="f-name">${f.name}</div>
       <div class="f-bar"><div class="f-fill" id="b${i}"></div></div>
-      <div class="f-score">${f.score.toFixed(1)}</div>
+      <div class="f-score">${score.toFixed(1)}</div>
     `;
     featuresEl.appendChild(row);
     setTimeout(() => {
-      document.getElementById("b" + i).style.width = (f.score * 10) + "%";
+      const el = document.getElementById("b" + i);
+      if (el) el.style.width = Math.min(100, score * 10) + "%";
     }, 80 + i * 70);
   });
 }

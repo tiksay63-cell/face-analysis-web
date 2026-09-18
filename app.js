@@ -7,7 +7,7 @@ tg.setBackgroundColor("#0b0d12");
 // ========== ВСТАВЬ СВОЮ ССЫЛКУ API ==========
 // Пример: если домен https://face-analysis-web-production-abcd.up.railway.app
 // то пиши так:
-const API_URL = "https://ВСТАВЬ-СВОЙ-ДОМЕН.up.railway.app/analyze";
+const API_URL = "https://tiksay63-cell.github.io/psl-miniapp/";
 // ============================================
 
 const photoInput = document.getElementById("photoInput");

@@ -1,23 +1,24 @@
 import base64
+import json
+import re
 from openai import OpenAI
 from config import OPENAI_API_KEY
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 SHORT_PROMPT = """
-Ты — жёсткий looksmaxxing-аналитик. Без воды, без сюсюканья, без смягчений.
-Говори прямо: что слабо, что тянет вниз, что выглядит плохо.
+Ты — жёсткий looksmaxxing-аналитик. Без воды, без сюсюканья.
+Говори прямо: что слабо, что тянет вниз.
 
-Анализируй ТОЛЬКО то, что видно на фото.
-Пиши на чистом русском.
+Анализируй только видимое на фото. Пиши на русском.
 Термины: Английский (русский).
 
-ОБЯЗАТЕЛЬНО:
+Обязательно:
 - PSL от 1.0 до 10.0
-- Тир строго один из: Sub3 / Sub5 / LTN / MTN / HTN / Chadlite / Chad / Gigachad
+- Тир: Sub3 / Sub5 / LTN / MTN / HTN / Chadlite / Chad / Gigachad
 - APPIL от 1.0 до 10.0
 
-Правила тиров:
+Тиры:
 Sub3 = 1.0–3.0
 Sub5 = 3.1–4.5
 LTN = 4.6–5.5
@@ -27,17 +28,16 @@ Chadlite = 7.3–7.9
 Chad = 8.0–8.9
 Gigachad = 9.0–10.0
 
-Не завышай. Если слабо — пиши что слабо.
-Не давай советов «как исправить» — только факты и намёки, что тянет вниз.
-Конкретные рекомендации — только в полном анализе.
+Не завышай. Не давай советов как исправить — только факты.
+Советы только в полном анализе.
 
-Формат (строго, коротко):
+Формат:
 
 📋 Краткий разбор
 
 ⭐ PSL: X.X / 10
 Тир: ...
-Почему: 1–2 предложения, жёстко.
+Почему: 1–2 жёстких предложения.
 
 ⭐ APPIL: X.X / 10
 Почему: 1 предложение.
@@ -55,7 +55,7 @@ Hunter Eyes / Canthal Tilt / Eye Set: ...
 💇 Волосы: ...
 🧔 Растительность: ...
 
-📸 Фото: свет / ракурс / качество — коротко.
+📸 Фото: свет / ракурс / качество.
 
 🎯 Главное
 1. ...
@@ -66,16 +66,15 @@ Hunter Eyes / Canthal Tilt / Eye Set: ...
 • ...
 • ...
 • ...
-(только факты, без «можно улучшить если...»)
 """
 
 FULL_PROMPT = """
-Ты — жёсткий looksmaxxing-аналитик. Без воды и сюсюканья.
-Говори прямо о слабостях. В конце дай конкретные soft-maxxing рекомендации.
+Ты — жёсткий looksmaxxing-аналитик. Без воды.
+Говори прямо о слабостях. В конце — конкретные soft-maxxing рекомендации.
 
-Анализируй только видимое. Русский язык. Термины: Английский (русский).
+Только видимое. Русский. Термины: Английский (русский).
 
-ОБЯЗАТЕЛЬНО:
+Обязательно:
 - PSL 1.0–10.0
 - Тир: Sub3 / Sub5 / LTN / MTN / HTN / Chadlite / Chad / Gigachad
 - APPIL 1.0–10.0
@@ -96,7 +95,7 @@ HTN 6.5–7.2 | Chadlite 7.3–7.9 | Chad 8.0–8.9 | Gigachad 9.0–10.0
 • Диморфизм: ...
 • Угловатость: ...
 • Глаза: ...
-Почему: жёстко и коротко.
+Почему: жёстко.
 
 ⭐ APPIL: X.X / 10
 Почему: ...
@@ -113,7 +112,7 @@ HTN 6.5–7.2 | Chadlite 7.3–7.9 | Chad 8.0–8.9 | Gigachad 9.0–10.0
 📸 Фото / ракурс: ...
 ✨ Подача: ...
 
-💡 Рекомендации (конкретно)
+💡 Рекомендации
 • Причёска: ...
 • Уход / кожа: ...
 • Свет и ракурс: ...
@@ -125,6 +124,30 @@ HTN 6.5–7.2 | Chadlite 7.3–7.9 | Chad 8.0–8.9 | Gigachad 9.0–10.0
 3. ...
 4. ...
 5. ...
+"""
+
+STRUCTURED_PROMPT = """
+Ты looksmaxxing-аналитик. Ответь ТОЛЬКО валидным JSON. Без markdown, без текста вокруг.
+
+Формат:
+{
+  "psl": 6.4,
+  "appil": 6.2,
+  "tier": "MTN",
+  "features": [
+    {"name": "Глаза", "score": 6.9},
+    {"name": "Нос", "score": 6.3},
+    {"name": "Губы", "score": 6.4},
+    {"name": "Скулы", "score": 6.1},
+    {"name": "Челюсть", "score": 5.8},
+    {"name": "Кожа", "score": 6.7},
+    {"name": "Гармония", "score": 6.3}
+  ],
+  "summary": "1-2 предложения жёстко: сильные и слабые стороны."
+}
+
+Тир только: Sub3, Sub5, LTN, MTN, HTN, Chadlite, Chad, Gigachad
+Числа от 1.0 до 10.0. Не завышай.
 """
 
 def analyze_image(image_path, full=False):
@@ -144,3 +167,45 @@ def analyze_image(image_path, full=False):
         }]
     )
     return response.output_text
+
+
+def analyze_image_structured(image_path):
+    with open(image_path, "rb") as f:
+        image_data = base64.b64encode(f.read()).decode("utf-8")
+
+    response = client.responses.create(
+        model="gpt-5.6-luna",
+        input=[{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": STRUCTURED_PROMPT},
+                {"type": "input_image", "image_url": f"data:image/jpeg;base64,{image_data}"}
+            ]
+        }]
+    )
+
+    text = response.output_text.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+
+    data = json.loads(text)
+    psl = float(data.get("psl", 5.0))
+
+    if psl <= 3.0:
+        data["tier"] = "Sub3"
+    elif psl <= 4.5:
+        data["tier"] = "Sub5"
+    elif psl <= 5.5:
+        data["tier"] = "LTN"
+    elif psl <= 6.4:
+        data["tier"] = "MTN"
+    elif psl <= 7.2:
+        data["tier"] = "HTN"
+    elif psl <= 7.9:
+        data["tier"] = "Chadlite"
+    elif psl <= 8.9:
+        data["tier"] = "Chad"
+    else:
+        data["tier"] = "Gigachad"
+
+    return data

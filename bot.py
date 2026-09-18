@@ -1,173 +1,129 @@
 import os
 import tempfile
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    LabeledPrice,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    PreCheckoutQueryHandler,
-    ContextTypes,
-    filters,
+    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
+    PreCheckoutQueryHandler, ContextTypes, filters
 )
-from config import (
-    TELEGRAM_BOT_TOKEN,
-    FREE_DAILY_ANALYSES,
-)
-from database import (
-    init_database,
-    get_free_analyses,
-    add_free_analysis,
-)
+from config import TELEGRAM_BOT_TOKEN, FREE_DAILY_ANALYSES
+from database import init_database, get_free_analyses, add_free_analysis
 from analyzer import analyze_image
 
 FULL_ANALYSIS_PRICE = 100
 PHOTO_DIR = "data/photos"
-
 CHANNEL_ID = "@myasnoibulion"
 CHANNEL_LINK = "https://t.me/myasnoibulion"
 
 
 def save_user_photo(user_id, source_path):
     os.makedirs(PHOTO_DIR, exist_ok=True)
-    destination = os.path.join(PHOTO_DIR, f"{user_id}.jpg")
-    with open(source_path, "rb") as source:
-        with open(destination, "wb") as destination_file:
-            destination_file.write(source.read())
-    return destination
+    dest = os.path.join(PHOTO_DIR, f"{user_id}.jpg")
+    with open(source_path, "rb") as s, open(dest, "wb") as d:
+        d.write(s.read())
+    return dest
 
 
 def get_user_photo(user_id):
     path = os.path.join(PHOTO_DIR, f"{user_id}.jpg")
-    if os.path.exists(path):
-        return path
-    return None
+    return path if os.path.exists(path) else None
 
 
-async def check_subscription(user_id: int, context: ContextTypes.DEFAULT_TYPE) -> bool:
+async def check_subscription(user_id, context):
     try:
-        member = await context.bot.get_chat_member(
-            chat_id=CHANNEL_ID,
-            user_id=user_id
-        )
+        member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
         return member.status in ("member", "administrator", "creator", "restricted")
     except Exception as e:
-        print("Ошибка проверки подписки:", e)
+        print("Sub check error:", e)
         return False
 
 
-async def ask_to_subscribe(update: Update):
+async def ask_to_subscribe(update):
     keyboard = [
-        [InlineKeyboardButton("📢 Подписаться на канал", url=CHANNEL_LINK)],
-        [InlineKeyboardButton("✅ Я подписался", callback_data="check_sub")]
+        [InlineKeyboardButton("Подписаться на канал", url=CHANNEL_LINK)],
+        [InlineKeyboardButton("Я подписался", callback_data="check_sub")]
     ]
     text = (
-        "🔒 Чтобы пользоваться ботом, нужно подписаться на канал.\n\n"
-        "1. Нажми «Подписаться на канал»\n"
+        "Чтобы пользоваться ботом — подпишись на канал.\n\n"
+        "1. Нажми «Подписаться»\n"
         "2. Подпишись\n"
         "3. Вернись и нажми «Я подписался»"
     )
-
     if update.message:
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
     elif update.callback_query:
         await update.callback_query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-
-    if not await check_subscription(user_id, context):
+async def start(update, context):
+    if not await check_subscription(update.effective_user.id, context):
         await ask_to_subscribe(update)
         return
 
     keyboard = [
-        [InlineKeyboardButton("📸 Анализировать фотографию", callback_data="analyze")],
-        [InlineKeyboardButton("📊 Мой лимит", callback_data="limit")],
-        [InlineKeyboardButton("💎 Полный анализ — 100 ⭐", callback_data="full")],
+        [InlineKeyboardButton("Анализировать фото", callback_data="analyze")],
+        [InlineKeyboardButton("Мой лимит", callback_data="limit")],
+        [InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")],
     ]
     await update.message.reply_text(
-        "Здравствуйте! 👋\n\n"
-        "Я делаю looksmaxxing-анализ лица по фотографии.\n\n"
-        "Бесплатный анализ:\n"
-        "⭐ PSL + APPIL оценка\n"
-        "📐 Разбор пропорций и структуры\n"
-        "⚠️ Намёки, что можно улучшить\n\n"
-        "Полный анализ (100 ⭐):\n"
-        "💡 Конкретные soft-maxxing рекомендации\n\n"
-        f"Бесплатно: {FREE_DAILY_ANALYSES} анализа в сутки.\n\n"
-        "Просто отправьте фотографию.",
+        "Looksmaxxing-анализ лица.\n\n"
+        "Бесплатно:\n"
+        "• PSL + APPIL\n"
+        "• Тир (Sub3 → Chad)\n"
+        "• Прямой разбор слабостей\n\n"
+        "Полный анализ (100 Stars):\n"
+        "• Конкретные рекомендации\n\n"
+        f"Лимит: {FREE_DAILY_ANALYSES} в сутки.\n"
+        "Кидай фото.",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
 async def ask_for_photo(query):
     await query.message.reply_text(
-        "📸 Отправьте фотографию лица.\n\n"
-        "Рекомендации:\n"
-        "• хорошее освещение\n"
-        "• лицо полностью в кадре\n"
-        "• камера на уровне глаз\n"
-        "• без сильных фильтров"
+        "Кидай фото лица.\n"
+        "Лучше: ровный свет, лицо в кадре, камера на уровне глаз, без фильтров."
     )
 
 
 async def show_limit(query):
-    user_id = query.from_user.id
-    used = get_free_analyses(user_id)
+    used = get_free_analyses(query.from_user.id)
     remaining = max(0, FREE_DAILY_ANALYSES - used)
-
     await query.message.reply_text(
-        "📊 Ваш лимит\n\n"
-        f"Использовано сегодня: {used}/{FREE_DAILY_ANALYSES}\n"
-        f"Осталось: {remaining}"
+        f"Лимит\nИспользовано: {used}/{FREE_DAILY_ANALYSES}\nОсталось: {remaining}"
     )
 
 
-async def show_full_analysis_info(query):
-    keyboard = [
-        [InlineKeyboardButton("💎 Купить полный анализ — 100 ⭐", callback_data="buy_full")]
-    ]
+async def show_full_info(query):
+    keyboard = [[InlineKeyboardButton("Купить — 100 Stars", callback_data="buy_full")]]
     await query.message.reply_text(
-        "💎 Полный looksmaxxing-анализ\n\n"
-        "Вы получите:\n"
-        "⭐ Точную PSL + APPIL оценку\n"
-        "📐 Подробный разбор всех зон\n"
-        "💡 Конкретные рекомендации, что и как улучшить\n"
-        "🎯 Приоритетные наблюдения\n\n"
-        "Стоимость: 100 ⭐",
+        "Полный разбор\n\n"
+        "• Точный PSL + тир\n"
+        "• Разбор всех зон\n"
+        "• Конкретные soft-maxxing рекомендации\n\n"
+        "100 Stars",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_handler(update, context):
     query = update.callback_query
     await query.answer()
-
-    user_id = query.from_user.id
+    uid = query.from_user.id
 
     if query.data == "check_sub":
-        if await check_subscription(user_id, context):
-            await query.message.reply_text("✅ Подписка подтверждена! Теперь можешь пользоваться ботом.")
+        if await check_subscription(uid, context):
+            await query.message.reply_text("Подписка ок. Можно пользоваться.")
             keyboard = [
-                [InlineKeyboardButton("📸 Анализировать фотографию", callback_data="analyze")],
-                [InlineKeyboardButton("📊 Мой лимит", callback_data="limit")],
-                [InlineKeyboardButton("💎 Полный анализ — 100 ⭐", callback_data="full")],
+                [InlineKeyboardButton("Анализировать фото", callback_data="analyze")],
+                [InlineKeyboardButton("Мой лимит", callback_data="limit")],
+                [InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")],
             ]
-            await query.message.reply_text(
-                "Выберите действие:",
-                reply_markup=InlineKeyboardMarkup(keyboard)
-            )
+            await query.message.reply_text("Выбери:", reply_markup=InlineKeyboardMarkup(keyboard))
         else:
-            await query.message.reply_text("❌ Ты ещё не подписан. Подпишись и нажми кнопку снова.")
+            await query.message.reply_text("Ещё не подписан. Подпишись и нажми снова.")
         return
 
-    if not await check_subscription(user_id, context):
+    if not await check_subscription(uid, context):
         await ask_to_subscribe(update)
         return
 
@@ -176,146 +132,337 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "limit":
         await show_limit(query)
     elif query.data == "full":
-        await show_full_analysis_info(query)
+        await show_full_info(query)
     elif query.data == "buy_full":
-        await send_full_invoice(query, context)
+        await send_invoice(query, context)
 
 
-async def send_full_invoice(query, context):
-    user_id = query.from_user.id
-    photo_path = get_user_photo(user_id)
-
-    if not photo_path:
-        await query.message.reply_text(
-            "📸 Сначала отправьте фотографию.\n"
-            "После этого можно купить полный анализ."
-        )
+async def send_invoice(query, context):
+    path = get_user_photo(query.from_user.id)
+    if not path:
+        await query.message.reply_text("Сначала кинь фото.")
         return
-
     await context.bot.send_invoice(
-        chat_id=user_id,
+        chat_id=query.from_user.id,
         title="Полный looksmaxxing-анализ",
-        description="Полный PSL + APPIL разбор с конкретными рекомендациями",
-        payload=f"full_analysis:{user_id}",
+        description="PSL + APPIL + конкретные рекомендации",
+        payload=f"full:{query.from_user.id}",
         provider_token="",
         currency="XTR",
         prices=[LabeledPrice("Полный анализ", FULL_ANALYSIS_PRICE)]
     )
 
 
-async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.pre_checkout_query
-    await query.answer(ok=True)
+async def precheckout(update, context):
+    await update.pre_checkout_query.answer(ok=True)
 
 
-async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    photo_path = get_user_photo(user_id)
-
-    if not photo_path:
-        await update.message.reply_text(
-            "✅ Оплата получена, но фотография не найдена.\n"
-            "Отправьте фото ещё раз."
-        )
+async def successful_payment(update, context):
+    uid = update.effective_user.id
+    path = get_user_photo(uid)
+    if not path:
+        await update.message.reply_text("Оплата прошла, но фото нет. Кинь ещё раз.")
         return
-
-    await update.message.reply_text(
-        "✅ Оплата получена!\n\n"
-        "🔎 Делаю полный анализ...\n"
-        "⭐ Считаю PSL и APPIL\n"
-        "💡 Готовлю рекомендации..."
-    )
-
+    await update.message.reply_text("Оплата получена. Делаю полный разбор...")
     try:
-        result = analyze_image(photo_path, full=True)
-        await send_long_message(update.message, result)
-    except Exception as error:
-        print("FULL ANALYSIS ERROR:", error)
-        await update.message.reply_text(
-            f"❌ Не удалось выполнить полный анализ.\nОшибка: {error}"
-        )
+        result = analyze_image(path, full=True)
+        await send_long(update.message, result)
+    except Exception as e:
+        print(e)
+        await update.message.reply_text(f"Ошибка: {e}")
 
 
-async def send_long_message(message, text):
-    max_length = 4000
-    for start in range(0, len(text), max_length):
-        await message.reply_text(text[start:start + max_length])
+async def send_long(message, text):
+    for i in range(0, len(text), 4000):
+        await message.reply_text(text[i:i+4000])
 
 
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-
-    if not await check_subscription(user_id, context):
+async def handle_photo(update, context):
+    uid = update.effective_user.id
+    if not await check_subscription(uid, context):
         await ask_to_subscribe(update)
         return
 
-    used = get_free_analyses(user_id)
-
+    used = get_free_analyses(uid)
     if used >= FREE_DAILY_ANALYSES:
-        keyboard = [[InlineKeyboardButton("💎 Полный анализ — 100 ⭐", callback_data="full")]]
+        keyboard = [[InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")]]
         await update.message.reply_text(
-            "🔒 Бесплатный лимит на сегодня исчерпан.\n\n"
-            f"Вы использовали {FREE_DAILY_ANALYSES} анализов.\n"
-            "Можно купить полный разбор.",
+            f"Лимит на сегодня кончился ({FREE_DAILY_ANALYSES}).\nМожно купить полный разбор.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
-    await update.message.reply_text(
-        "🔎 Анализирую фотографию...\n"
-        "⭐ Считаю PSL и APPIL\n"
-        "⏳ Подождите."
-    )
+    await update.message.reply_text("Считаю PSL и APPIL...")
 
     photo = update.message.photo[-1]
-    telegram_file = await photo.get_file()
-
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp:
-        temporary_path = temp.name
+    tg_file = await photo.get_file()
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        path = tmp.name
 
     try:
-        await telegram_file.download_to_drive(temporary_path)
-        save_user_photo(user_id, temporary_path)
+        await tg_file.download_to_drive(path)
+        save_user_photo(uid, path)
+        result = analyze_image(path, full=False)
+        add_free_analysis(uid)
+        await send_long(update.message, result)
 
-        result = analyze_image(temporary_path, full=False)
-        add_free_analysis(user_id)
-        await send_long_message(update.message, result)
-
-        keyboard = [[InlineKeyboardButton("💎 Полный анализ — 100 ⭐", callback_data="full")]]
+        keyboard = [[InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")]]
         await update.message.reply_text(
-            "💡 Хотите узнать конкретные рекомендации, как улучшить результат?",
+            "Нужны конкретные рекомендации — бери полный разбор.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-
-    except Exception as error:
-        print("PHOTO ANALYSIS ERROR:", error)
-        await update.message.reply_text(
-            f"❌ Не удалось выполнить анализ.\nОшибка: {error}"
-        )
+    except Exception as e:
+        print(e)
+        await update.message.reply_text(f"Ошибка анализа: {e}")
     finally:
-        if os.path.exists(temporary_path):
-            os.remove(temporary_path)
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def main():
     init_database()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(PreCheckoutQueryHandler(precheckout))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
+    print("Бот запущен")
+    app.run_polling()
 
-    application = (
-        Application.builder()
-        .token(TELEGRAM_BOT_TOKEN)
-        .build()
+
+if __name__ == "__main__":
+    main()import os
+import tempfile
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, CallbackQueryHandler,
+    PreCheckoutQueryHandler, ContextTypes, filters
+)
+from config import TELEGRAM_BOT_TOKEN, FREE_DAILY_ANALYSES
+from database import init_database, get_free_analyses, add_free_analysis
+from analyzer import analyze_image
+
+FULL_ANALYSIS_PRICE = 100
+PHOTO_DIR = "data/photos"
+CHANNEL_ID = "@myasnoibulion"
+CHANNEL_LINK = "https://t.me/myasnoibulion"
+
+
+def save_user_photo(user_id, source_path):
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    dest = os.path.join(PHOTO_DIR, f"{user_id}.jpg")
+    with open(source_path, "rb") as s, open(dest, "wb") as d:
+        d.write(s.read())
+    return dest
+
+
+def get_user_photo(user_id):
+    path = os.path.join(PHOTO_DIR, f"{user_id}.jpg")
+    return path if os.path.exists(path) else None
+
+
+async def check_subscription(user_id, context):
+    try:
+        member = await context.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        return member.status in ("member", "administrator", "creator", "restricted")
+    except Exception as e:
+        print("Sub check error:", e)
+        return False
+
+
+async def ask_to_subscribe(update):
+    keyboard = [
+        [InlineKeyboardButton("Подписаться на канал", url=CHANNEL_LINK)],
+        [InlineKeyboardButton("Я подписался", callback_data="check_sub")]
+    ]
+    text = (
+        "Чтобы пользоваться ботом — подпишись на канал.\n\n"
+        "1. Нажми «Подписаться»\n"
+        "2. Подпишись\n"
+        "3. Вернись и нажми «Я подписался»"
+    )
+    if update.message:
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    elif update.callback_query:
+        await update.callback_query.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def start(update, context):
+    if not await check_subscription(update.effective_user.id, context):
+        await ask_to_subscribe(update)
+        return
+
+    keyboard = [
+        [InlineKeyboardButton("Анализировать фото", callback_data="analyze")],
+        [InlineKeyboardButton("Мой лимит", callback_data="limit")],
+        [InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")],
+    ]
+    await update.message.reply_text(
+        "Looksmaxxing-анализ лица.\n\n"
+        "Бесплатно:\n"
+        "• PSL + APPIL\n"
+        "• Тир (Sub3 → Chad)\n"
+        "• Прямой разбор слабостей\n\n"
+        "Полный анализ (100 Stars):\n"
+        "• Конкретные рекомендации\n\n"
+        f"Лимит: {FREE_DAILY_ANALYSES} в сутки.\n"
+        "Кидай фото.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
-    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
 
-    print("================================")
+async def ask_for_photo(query):
+    await query.message.reply_text(
+        "Кидай фото лица.\n"
+        "Лучше: ровный свет, лицо в кадре, камера на уровне глаз, без фильтров."
+    )
+
+
+async def show_limit(query):
+    used = get_free_analyses(query.from_user.id)
+    remaining = max(0, FREE_DAILY_ANALYSES - used)
+    await query.message.reply_text(
+        f"Лимит\nИспользовано: {used}/{FREE_DAILY_ANALYSES}\nОсталось: {remaining}"
+    )
+
+
+async def show_full_info(query):
+    keyboard = [[InlineKeyboardButton("Купить — 100 Stars", callback_data="buy_full")]]
+    await query.message.reply_text(
+        "Полный разбор\n\n"
+        "• Точный PSL + тир\n"
+        "• Разбор всех зон\n"
+        "• Конкретные soft-maxxing рекомендации\n\n"
+        "100 Stars",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def button_handler(update, context):
+    query = update.callback_query
+    await query.answer()
+    uid = query.from_user.id
+
+    if query.data == "check_sub":
+        if await check_subscription(uid, context):
+            await query.message.reply_text("Подписка ок. Можно пользоваться.")
+            keyboard = [
+                [InlineKeyboardButton("Анализировать фото", callback_data="analyze")],
+                [InlineKeyboardButton("Мой лимит", callback_data="limit")],
+                [InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")],
+            ]
+            await query.message.reply_text("Выбери:", reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await query.message.reply_text("Ещё не подписан. Подпишись и нажми снова.")
+        return
+
+    if not await check_subscription(uid, context):
+        await ask_to_subscribe(update)
+        return
+
+    if query.data == "analyze":
+        await ask_for_photo(query)
+    elif query.data == "limit":
+        await show_limit(query)
+    elif query.data == "full":
+        await show_full_info(query)
+    elif query.data == "buy_full":
+        await send_invoice(query, context)
+
+
+async def send_invoice(query, context):
+    path = get_user_photo(query.from_user.id)
+    if not path:
+        await query.message.reply_text("Сначала кинь фото.")
+        return
+    await context.bot.send_invoice(
+        chat_id=query.from_user.id,
+        title="Полный looksmaxxing-анализ",
+        description="PSL + APPIL + конкретные рекомендации",
+        payload=f"full:{query.from_user.id}",
+        provider_token="",
+        currency="XTR",
+        prices=[LabeledPrice("Полный анализ", FULL_ANALYSIS_PRICE)]
+    )
+
+
+async def precheckout(update, context):
+    await update.pre_checkout_query.answer(ok=True)
+
+
+async def successful_payment(update, context):
+    uid = update.effective_user.id
+    path = get_user_photo(uid)
+    if not path:
+        await update.message.reply_text("Оплата прошла, но фото нет. Кинь ещё раз.")
+        return
+    await update.message.reply_text("Оплата получена. Делаю полный разбор...")
+    try:
+        result = analyze_image(path, full=True)
+        await send_long(update.message, result)
+    except Exception as e:
+        print(e)
+        await update.message.reply_text(f"Ошибка: {e}")
+
+
+async def send_long(message, text):
+    for i in range(0, len(text), 4000):
+        await message.reply_text(text[i:i+4000])
+
+
+async def handle_photo(update, context):
+    uid = update.effective_user.id
+    if not await check_subscription(uid, context):
+        await ask_to_subscribe(update)
+        return
+
+    used = get_free_analyses(uid)
+    if used >= FREE_DAILY_ANALYSES:
+        keyboard = [[InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")]]
+        await update.message.reply_text(
+            f"Лимит на сегодня кончился ({FREE_DAILY_ANALYSES}).\nМожно купить полный разбор.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+    await update.message.reply_text("Считаю PSL и APPIL...")
+
+    photo = update.message.photo[-1]
+    tg_file = await photo.get_file()
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        path = tmp.name
+
+    try:
+        await tg_file.download_to_drive(path)
+        save_user_photo(uid, path)
+        result = analyze_image(path, full=False)
+        add_free_analysis(uid)
+        await send_long(update.message, result)
+
+        keyboard = [[InlineKeyboardButton("Полный анализ — 100 Stars", callback_data="full")]]
+        await update.message.reply_text(
+            "Нужны конкретные рекомендации — бери полный разбор.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    except Exception as e:
+        print(e)
+        await update.message.reply_text(f"Ошибка анализа: {e}")
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+
+def main():
+    init_database()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(PreCheckoutQueryHandler(precheckout))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
     print("Бот запущен")
-    print("================================")
-    application.run_polling()
+    app.run_polling()
 
 
 if __name__ == "__main__":
